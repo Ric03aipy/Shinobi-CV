@@ -11,9 +11,13 @@ from utility import draw_landmarks_on_image
 import time
 import numpy as np
 
-from config import HAND_TRACKER_MODEL
+from config import HAND_TRACKER_MODEL, TRACKING_CONFIDENCE
 
 class VideoCameraHandDetector: 
+
+    """
+    Class to open the camera and record hand points. Stream flat array of hand points, invariant to scale and normalized with respect to the wrist for each hand. 
+    """
 
     def __init__(self, camera_index:int = 0):
 
@@ -36,7 +40,13 @@ class VideoCameraHandDetector:
 
         # Create and HandLandmarker object detector
         base_options = python.BaseOptions(model_asset_path = HAND_TRACKER_MODEL)
-        options = vision.HandLandmarkerOptions(base_options=base_options, num_hands=2)
+        options = vision.HandLandmarkerOptions(
+            base_options=base_options, 
+            num_hands=2, 
+            min_hand_detection_confidence=TRACKING_CONFIDENCE, # Threshold to detect the hand
+            min_hand_presence_confidence=TRACKING_CONFIDENCE,  # Threshold to say the hand is still there
+            min_tracking_confidence=TRACKING_CONFIDENCE        # Threshold for continuous tracking
+        )
         self.detector = vision.HandLandmarker.create_from_options(options)
 
     def stream_data(self) -> Generator[Dict, None, None]: 

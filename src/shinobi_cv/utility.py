@@ -1,5 +1,5 @@
 
-# ========= From Colab Example:  ============
+# =========== From Colab Example:  ==============
 # https://colab.research.google.com/github/googlesamples/mediapipe/blob/main/examples/hand_landmarker/python/hand_landmarker.ipynb#scrollTo=s3E6NFV-00Qt
 
 import cv2 as cv
@@ -46,4 +46,4 @@ def draw_landmarks_on_image(rgb_image, detection_result):
                     FONT_SIZE, HANDEDNESS_TEXT_COLOR, FONT_THICKNESS, cv.LINE_AA)
     return annotated_image
 
-# ================================================
+# ===================================================
