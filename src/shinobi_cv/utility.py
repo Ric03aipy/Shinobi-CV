@@ -1,10 +1,15 @@
+import mediapipe as mp
+from mediapipe.tasks import python
+from mediapipe.tasks.python import vision
+from mediapipe.tasks.python.vision import drawing_utils
+from mediapipe.tasks.python.vision import drawing_styles
+import numpy as np
+import matplotlib.pyplot as plt
+import cv2 as cv
 
 # =========== From Colab Example:  ==============
 # https://colab.research.google.com/github/googlesamples/mediapipe/blob/main/examples/hand_landmarker/python/hand_landmarker.ipynb#scrollTo=s3E6NFV-00Qt
 
-import cv2 as cv
-import mediapipe as mp
-import numpy as np
 
 mp_hands = mp.tasks.vision.HandLandmarksConnections
 mp_drawing = mp.tasks.vision.drawing_utils
@@ -47,3 +52,18 @@ def draw_landmarks_on_image(rgb_image, detection_result):
     return annotated_image
 
 # ===================================================
+
+
+
+def get_camera_coordinates(xyz_tuple:tuple[int], w: int, h: int) -> tuple[int]: 
+    """
+    Args:
+        xyz_list (list[int]): absolute normalized coordinates [x,y,z].
+        w (int): frame width
+        h (int): frame height
+
+    Returns:
+        list[int]: absolute frame coordinates [x,y]. 
+    """
+    x, y, _ = xyz_tuple
+    return (int(x * w), int(y * h))

@@ -1,10 +1,15 @@
+# TODO: RIALLINEARE RISPETTO AL REFACTORING FATTO SUIGLI OGGETTI INTERESSATI
+
+
 from hand_tracking import VideoCameraHandDetector
 
 import numpy as np
 import pandas as pd
 
-from config import INTERVAL, SIGN_TO_REGISTER_ID, DATA_FILE, SIGNS
+from config import DATA_FILE, SIGNS
 from pathlib import Path
+
+INTERVAL = 3 # Number of frames to discard
 
 COLUMN_NAME = [f"f_l_{i}" for i in range(126)]  + ["sign_id"]
 SIGN_TO_REGISTER_ID = 6 # TODO : devo fare monkey = 6
