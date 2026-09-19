@@ -1,0 +1,31 @@
+# Python-generated files - 
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# IDE & Local files
+.vscode 
+Journal.md
+note.txt
+image.webp
+hand_img.jpg
+src/shinobi_cv/hand_tracking_prova.py
+src/shinobi_cv/face_landmark_prova.py
+src/shinobi_cv/audio_test.py
+
+tests/*/
+
+# Future works
+src/research/
+
+# AI models whose property is not mine OR large models
+src/models/*.task
+src/models/*/
+
+

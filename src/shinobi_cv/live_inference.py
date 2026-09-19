@@ -5,21 +5,22 @@ import torch
 import cv2 as cv
 from collections import deque
 
-from video_stramer import VideoCameraStreamer
-from hand_tracking import HandDetector
-from face_landmark_detection import FaceLandMarkDetection
-from training.mlp_model import HandSignMLP
-from animation import Renderer, TimedAnimation, ToggleAnimation, ANIMATION_PATH
-from audio import AudioDetector
-from utility import get_camera_coordinates
+from src.shinobi_cv.video_streamer import VideoCameraStreamer
+from src.shinobi_cv.hand_tracking import HandDetector
+from src.shinobi_cv.face_landmark_detection import FaceLandMarkDetection
+from src.training.mlp_model import HandSignMLP
+from src.shinobi_cv.animation import Renderer
+from src.shinobi_cv.utility import get_camera_coordinates
 
-from config import  MODEL, MODELS_PATH, SIGNS, MINIMUM_CONFIDENCE, \
-                    TIME_TO_CONFIRM, SEQUENCES, SEQUENCES_TO_CAST, MAX_QUEUE_LEN, \
-                    SHARINGAN_MSG, BYAKUGAN_MSG, EMPTY_MSG
-from sign_search import SignTrie
-
-import threading
+from src.shinobi_cv.config import  MODELS_PATH, SIGNS, MINIMUM_CONFIDENCE, \
+                    TIME_TO_CONFIRM,  SEQUENCES_TO_CAST, MAX_QUEUE_LEN, \
+                    SHARINGAN_MSG, BYAKUGAN_MSG
+from src.shinobi_cv.sign_search import SignTrie
 import queue
+
+import logging
+logger = logging.getLogger(__name__)
+
 
 
 class Inference_Model(): 
@@ -89,7 +90,7 @@ def live_inference(
     try: 
         frame = next(frame_streamer) # Initialize the first frame to elaborate
     except StopIteration: # Specific signal when an iterable is consumed completely
-        print("Leaving at first iteration. Something wrong with the camera?")
+        logger.critical("Leaving at first iteration. Something wrong with the camera?")
         return 
     
     
@@ -100,8 +101,6 @@ def live_inference(
     current_sign:int = None
 
     last_record = 0         # Instant of time when a new sign has been recorded
-
-    # START = time.time()
 
     try:
         while True: # I can't stream directly from the generator because using next() and send() will consume 2 frames per iteration otherwise 
@@ -121,8 +120,7 @@ def live_inference(
 
             # ====== Animation ======
 
-            # Draw only specific points, not all detected pts 
-            # TODO: modificare sopra la funzione hand_detector.detect() ? Molstrare i punti serve solo a me a capire come posizionarmi meglio durante l'uso. Per ora resta
+            # Draw specific points, not all detected pts 
             for pt in core_pts.values():
                 pt_x, pt_y = pt[0], pt[1]
                 # If the rectangle is not fully in the screen it doesn't raise any error
@@ -131,6 +129,7 @@ def live_inference(
             # Reading from audio module
             try: 
                 msg:str = msg_queue.get(block=False) # If no item is available raise queue.Empty exception, do not block
+                logger.debug(f"Received audio information: {msg}")
                 if msg == SHARINGAN_MSG: 
                     if renderer.is_active("left_sharingan"):
                         renderer.end_animation("left_sharingan")
@@ -149,22 +148,12 @@ def live_inference(
                         renderer.end_animation("right_byakugan")  
                     else:
                         renderer.start_animation("right_byakugan")  
-                else: 
-                    print("Received garbage msg:", msg)
             except queue.Empty:
+                # Most of the time the queue is empty
                 pass
             except Exception as e:
-                print(e)
+                logger.critical("Exception from the audio module")
                 raise e
-        
-
-
-            # DEBUG
-            # if time.time()-START > 4: 
-            #     # animation_to_cast = "great fireball jutsu" 
-            #     renderer.start_animation("great fireball jutsu")
-            #     START = time.time()
-
 
             for animation_name in renderer.active_animations.copy(): 
                 # Check to end animation 
@@ -173,7 +162,6 @@ def live_inference(
                 # Animate
                 else: 
                     new_frame = renderer.blend(animation_name, new_frame, core_pts, face_detector_res.get("scale_factor", None))
-
 
             # ====== Collect data as the sign predictive model expects ======  
 
@@ -218,21 +206,20 @@ def live_inference(
             if control_append: 
                 voting_queue.append(pred_class)
                 votes[pred_class] += 1
-            print(voting_queue)
 
             # Current sign is the mode of data in the queue. For stability wait for the queue to be filled
             if filled: 
                 prev_sign = current_sign
                 most_frequent_vote = np.argmax(votes).item()
                 current_sign = most_frequent_vote if votes[most_frequent_vote] > MAX_QUEUE_LEN // 2 else current_sign   # not SIGNS[most_frequent_vote] because I want the index of this
-                print(current_sign, "|", prev_sign)
+                cv.putText(new_frame, f"Curr sign = {SIGNS[current_sign]} | Sign count = {votes[current_sign]}/6", (400, 50), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), thickness=5, lineType=cv.LINE_AA) 
                 # Look up into the trie to cast the justu only when it changes
                 if current_sign != prev_sign: 
                     sequence_to_cast = sign_trie.search_from_current_ptr(current_sign)
-                    print("Trovato:", sequence_to_cast)
+                    logger.info("Found sign in the trie:", sequence_to_cast)
                     if sequence_to_cast: # After a sing is casted whatever arrives will restart the sequence thanks to the prefix-free property of SignTrie
                         sequence_to_cast_names = tuple((SIGNS[sign_id] for sign_id in sequence_to_cast))
-                        print(SEQUENCES_TO_CAST[sequence_to_cast_names])
+                        logger.info(f"Casted: {SEQUENCES_TO_CAST[sequence_to_cast_names]}")
 
                         # Casting a jutsu - Graphical Overlay
                         renderer.start_animation(SEQUENCES_TO_CAST[sequence_to_cast_names])
@@ -240,56 +227,7 @@ def live_inference(
             frame = frame_streamer.send(new_frame) # send() is a call to the generator itself so it receives the result of 'yield' keyword
 
     except StopIteration:
-        print("User clicked 'q' to stop the stream. Closing the program.") 
+        logger.info("User clicked 'q' to stop the stream. Closing the program.") 
         return
     except Exception as e:
-        print("="*50)
-        print("Unexpected error: ")
-        print(e, e.__traceback__)
-        print("="*50)
-
-if __name__ == "__main__":
-
-    # ======= Initialization =======
-
-    # Streamer for camera frames
-    streamer = VideoCameraStreamer()
-
-    # Hand detector for normalized scale invariant points 
-    hand_detector = HandDetector()
-
-    # Model for sign inference
-    model = Inference_Model(MODEL.stem)  
-
-    # Trie for sequence search
-    sign_trie = SignTrie(SEQUENCES)
-
-    # Face Landmark Detector for mouth and eye normalized scale invariant points
-    face_detector = FaceLandMarkDetection()
-
-    # Animations
-    fireball = TimedAnimation(3, ANIMATION_PATH / "flame_transparent.png", "mouth_center", particular_offset_x = -270)
-    left_sharingan = ToggleAnimation(ANIMATION_PATH / "sharingan.png", "left_eye_center", particular_offset_x = -150, particular_offset_y = -150, particular_scale = 0.05)
-    right_sharingan = ToggleAnimation(ANIMATION_PATH / "sharingan.png", "right_eye_center", particular_offset_x = -150, particular_offset_y = -150, particular_scale = 0.05)
-    left_byakugan = ToggleAnimation(ANIMATION_PATH / "Byakugan.png", "left_eye_center", particular_offset_x = -200, particular_offset_y = -200, particular_scale=0.04)
-    right_byakugan = ToggleAnimation(ANIMATION_PATH / "Byakugan.png", "right_eye_center", particular_offset_x = -200, particular_offset_y = -200, particular_scale=0.04)
-
-    renderer = Renderer()
-    renderer.add_animation("great fireball jutsu", fireball)
-    renderer.add_animation("left_sharingan", left_sharingan)
-    renderer.add_animation("right_sharingan", right_sharingan)
-    renderer.add_animation("left_byakugan", left_byakugan)
-    renderer.add_animation("right_byakugan", right_byakugan)
-
-    # Audio module: init and start
-    msg_queue = queue.Queue(maxsize=1)
-    audio_detector = AudioDetector()
-    audio_thread = threading.Thread(
-        target=audio_detector.run,
-        args=(msg_queue,),
-        daemon=True
-    )
-    audio_thread.start()
-
-    # Start the inference
-    live_inference(streamer, hand_detector, model, sign_trie, face_detector, renderer, msg_queue)
+        logger.exception("Unexpected error in the real time inference loop")

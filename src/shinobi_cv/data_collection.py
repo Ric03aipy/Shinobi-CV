@@ -1,44 +1,59 @@
 # TODO: RIALLINEARE RISPETTO AL REFACTORING FATTO SUIGLI OGGETTI INTERESSATI
 
 
-from hand_tracking import VideoCameraHandDetector
+from src.shinobi_cv.hand_tracking import HandDetector
+from src.shinobi_cv.video_streamer import VideoCameraStreamer
 
 import numpy as np
 import pandas as pd
 
-from config import DATA_FILE, SIGNS
+from src.shinobi_cv.config import DATA_FILE, SIGNS
 from pathlib import Path
 
 INTERVAL = 3 # Number of frames to discard
 
 COLUMN_NAME = [f"f_l_{i}" for i in range(126)]  + ["sign_id"]
-SIGN_TO_REGISTER_ID = 6 # TODO : devo fare monkey = 6
+SIGN_TO_REGISTER_ID = 11 # TODO : devo fare monkey = 6
 
 def collect(): 
 
-    hand_detector = VideoCameraHandDetector()
     count = 0
     written = 0
+    streamer = VideoCameraStreamer()
+    hand_detector = HandDetector()
+    frame_streamer = streamer.stream_data()
+
     print("Press 'q' to interrupt")
-    streamer = hand_detector.stream_data()
+
+    try: 
+        frame = next(frame_streamer) # Initialize the first frame to elaborate
+    except StopIteration: # Specific signal when an iterable is consumed completely
+        print("Leaving at first iteration. Something wrong with the camera?")
+        return 
+
     try: 
 
         # Ask the generator for data
-        for stream_data in streamer: # It should be [{"type": "Left"|"Right", "data": np.ndarray}, {"type": "Left"|"Right", "data": np.ndarray}]
+        while True: 
+
+            hand_detector_res, new_frame = hand_detector.detect(frame)
 
             # There must be 2 hands
-            if len(stream_data) != 2: continue
-            hand_type1 = stream_data[0]["type"]
-            hand_type2 = stream_data[1]["type"]
+            if len(hand_detector_res) != 2: 
+                frame = frame_streamer.send(new_frame) # send() is a call to the generator itself so it receives the result of 'yield' keyword
+                continue
+            hand_type1 = hand_detector_res[0]["type"]
+            hand_type2 = hand_detector_res[1]["type"]
 
             # 2 left hands or 2 right hands are not accepted   
-            if hand_type1 == hand_type2: continue
-            data1 = stream_data[0]["data"]
-            data2 = stream_data[1]["data"]
+            if hand_type1 == hand_type2: 
+                frame = frame_streamer.send(new_frame) # send() is a call to the generator itself so it receives the result of 'yield' keyword
+                continue
+            data1 = hand_detector_res[0]["data"]
+            data2 = hand_detector_res[1]["data"]
 
             # Force the order of data to be "Left then Right" 
-            if hand_type1 == "Right": 
-                data1, data2 = data2, data1
+            if hand_type1 == "right": data1, data2 = data2, data1
 
             # Since hand type is fixed, there is no reason to write them as features since they would be the same for each row. Nothing to learn, just noise.
             # hand_type1, hand_type2 = np.array(0), np.array(1)
@@ -46,6 +61,7 @@ def collect():
             # Consider a frame every INTERVAL
             count += 1
             if count != INTERVAL:
+                frame = frame_streamer.send(new_frame) # send() is a call to the generator itself so it receives the result of 'yield' keyword
                 continue
             count = 0   
 
@@ -58,6 +74,8 @@ def collect():
             df.to_csv(DATA_FILE, mode = 'a', index = 0, header = not Path.exists(DATA_FILE))
             written += 1
             print(f"Sample collected in this session #{written}.")
+
+            frame = frame_streamer.send(new_frame) # send() is a call to the generator itself so it receives the result of 'yield' keyword
 
     except Exception: # 'q' stops the window and breaks - on purpose - the code 
         print("Data collection stopped.")

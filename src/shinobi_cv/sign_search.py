@@ -1,4 +1,7 @@
-from config import SIGNS
+from src.shinobi_cv.config import SIGNS
+
+import logging
+logger = logging.getLogger(__name__)
 
 class SignTrieNode: 
     def __init__(self):
@@ -9,6 +12,7 @@ class SignTrieNode:
         return "[*] -> " + str(self.children)
 
 
+# Instrad of a character I search a word and instead of a word I save a formula here
 
 class SignTrie: 
     def __init__(self, sequences:dict=None):
@@ -19,6 +23,8 @@ class SignTrie:
         sign_name_id_map = {name:idx for idx, name in SIGNS.items()}
         for seq in sequences: 
             self.insert([sign_name_id_map[word] for word in sequences[seq]])
+
+        logger.info(f"Trie initialized with sequence: {str(sequences)}")
 
     def insert(self, formula: list[int]): 
         curr = self.root

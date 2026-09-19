@@ -1,5 +1,5 @@
 import time
-from config import ROOT
+from src.shinobi_cv.config import ROOT
 from pathlib import Path
 from abc import ABC, abstractmethod
 import cv2 as cv
@@ -7,12 +7,15 @@ import numpy as np
 
 from typing import Literal
 
-from config import SCALE_FACTOR_REFERENCE
+from src.shinobi_cv.config import SCALE_FACTOR_REFERENCE
 
 ANIMATION_PATH = ROOT / "shinobi_cv" / "animations" 
 MIN_SCALE = 0.005
 MAX_SCALE = 2
+LOCAL_DEBUG = False
 
+import logging
+logger = logging.getLogger(__name__)
 
 # 2 tipes of animation: 
 # TimedAnimation: animation with a fixed duration - for ninjustu
@@ -36,10 +39,12 @@ class Animation(ABC):
             particular_offset_y (int, optional): use this if you want to shift your image of the y axis. Defaults to 0.
             particular_scale (float, optional): use this if you want to resize your image in a custom way. Defaults to 1.0. 
         """
-        if not image_path.exists(): raise FileNotFoundError
+        if not image_path.exists(): 
+            logger.critical("Could not proceed for missing file.")
+            raise FileNotFoundError
         self.image = cv.imread(image_path, cv.IMREAD_UNCHANGED)
         if self.image.shape[2] == 3:
-            print(f"Animation at {image_path} has no alpha channel. Explicing it as solid. You should provide alpha channel.")
+            logger.warning(f"Animation at {image_path} has no alpha channel. Explicing it as solid. You should provide alpha channel.")
             self.image = cv.cvtColor(self.image, cv.COLOR_BGR2BGRA)
         self.roi = roi
         self.particular_offset_x = particular_offset_x
@@ -60,7 +65,16 @@ class Animation(ABC):
     @ abstractmethod
     def end(self): pass
     @abstractmethod
-    def get_offset_and_scale(self, core_pts:dict, scale:float) -> tuple[int|None, int|None, float]: pass
+    def get_offset_and_scale(self, core_pts:dict, scale:float) -> tuple[int|None, int|None, float]: 
+        """
+        Args:
+            core_pts (dict): points where image can be attached.
+            scale (float): stable distance provided by the face detector.
+
+        Returns:
+            tuple[int|None, int|None, float]: scaled offset and scaling for the image resize if computable.
+        """
+        pass
 
 
 
@@ -98,11 +112,14 @@ class TimedAnimation(Animation):
         offset_x, offset_y = core_pts.get(self.roi, (None, None))  # Enters already only (x, y)
         if offset_x is None and offset_y is None: return (offset_x, offset_y, self.particular_scale)
 
-        # BISOGNA CALCOLARE LO SCALE TOTALE E RITORNARE GLI OFFSET GIà SCALATI E LO SCALING GIUSTO PER L'IMMAGINE
+        # Computing total scale
         if scale is None: scale = SCALE_FACTOR_REFERENCE
         scale = scale / SCALE_FACTOR_REFERENCE # > 1 if nearer -> bigger image
 
         total_scale = scale * self.particular_scale
+        total_scale = max(MIN_SCALE, min(total_scale, MAX_SCALE))
+
+        # Return scaled offset and scaling for the image resize
         
         return (offset_x + int(self.particular_offset_x * total_scale), 
                 offset_y + int(self.particular_offset_y * total_scale), 
@@ -177,11 +194,12 @@ class Renderer:
         subject = cv.resize(subject, None, fx=scale, fy=scale)
 
         if offset_x is None and offset_y is None: 
-            print("Non ho ottenuto un offset")
+            # No offset means there are no points to anchor
             return background
         
         subject_h, subject_w = subject.shape[:2]
-        print("forma del soggetto:", subject.shape)
+
+        if LOCAL_DEBUG: logger.debug("forma del soggetto:", subject.shape)
 
         # Computing how many pixels are out of bound due to particular offset of images on the negative axis (the positive values are handled by slicing)
         x_oob = -min(0, offset_x)
@@ -189,7 +207,8 @@ class Renderer:
 
         # Extract only the portion of the background that superposes: slicing stops at bounds when out of image bounds.
         # For the background, ignore the transparency, if any
-        roi_background = background[offset_y + y_oob: offset_y + subject_h, offset_x + x_oob: offset_x + subject_w][:,:,:3]
+        # This robust selection of the roi_background makes some flickering around the border (top and left) but prevents from unpredictable negative index -> broadcast error
+        roi_background = background[max(0, offset_y + y_oob): max(0, offset_y + subject_h), max(0, offset_x + x_oob): max(0, offset_x + subject_w)][:,:,:3]
 
         # If subject is larger than the canvas I have to cat the subject to the available space
         roi_subject = subject[y_oob: y_oob + roi_background.shape[0], x_oob: x_oob + roi_background.shape[1]]
@@ -197,62 +216,20 @@ class Renderer:
         # Blending : note that height and width 
         alpha = roi_subject[:,:,3].astype(float) / 255.0 # Normalize in [0,1] ; 2D, shape es. for "great fireball jutsu" = (302, 290) 
         roi_subject_colors = roi_subject[:,:,:3].astype(float)
-        print("dimensione di alpha", alpha.shape)
-        print("dimensione di roi_sub_colors", roi_subject_colors.shape)
-        print("dimensione di roi_bg", roi_background.shape)
+        if LOCAL_DEBUG: logger.debug("dimensione di alpha", alpha.shape)
+        if LOCAL_DEBUG: logger.debug("dimensione di roi_sub_colors", roi_subject_colors.shape)
+        if LOCAL_DEBUG: logger.debug("dimensione di roi_bg", roi_background.shape)
         blend_roi = (roi_subject_colors * alpha[..., np.newaxis] + roi_background * (1 - alpha[..., np.newaxis])).astype(np.uint8) # * is element-wise multiplication | adding a new axis to allow numpy broadcasting es. (302, 290, 1) with (302, 290, 3)
 
         # Glue the blend portion on the background and return 
         img_blend = background.copy()
-        print("dimensione di quello che voglio prendere:", img_blend[y_oob + offset_y: y_oob + offset_y + subject_h, x_oob + offset_x: x_oob + offset_x + subject_w].shape)
-        print("dimensione di quello che voglio assegnare:", blend_roi.shape)
+        if LOCAL_DEBUG: logger.debug("dimensione di quello che voglio prendere:", img_blend[y_oob + offset_y: y_oob + offset_y + subject_h, x_oob + offset_x: x_oob + offset_x + subject_w].shape)
+        if LOCAL_DEBUG: logger.debug("dimensione di quello che voglio assegnare:", blend_roi.shape)
         img_blend[y_oob + offset_y: y_oob + offset_y + roi_subject_colors.shape[0], x_oob + offset_x: x_oob + offset_x + roi_subject_colors.shape[1]] = blend_roi
 
         return img_blend
 
     def __getitem__(self, key): return self.get_animation(key)
 
-
-
-
-
-
-# ==================== TEST ====================
-
-if __name__ == "__main__": 
-    fireball = TimedAnimation(1, ANIMATION_PATH / "flame_transparent.png")
-    chidori = TimedAnimation(3, ANIMATION_PATH / "TODO")
-
-    # No human being is able to do weird hand signs so fast but I allow to cast multiple jutsu 
-    start = time.time()
-    fireball.start()
-    time.sleep(1)
-    chidori.start()
-    print("Both animation started")
-    while fireball.is_active(): pass
-    fireball.end()
-    print("fireball finished after", time.time() - start)
-    while chidori.is_active(): pass
-    chidori.end()
-    print("chidori finished, ", time.time() - start)
-
-    # Test as a sequence (and test restart of the same object)
-    start = time.time()
-    fireball.start()
-    while fireball.is_active(): pass
-    print("fireball finished after", time.time() - start)
-
-    start = time.time()
-    chidori.start()
-    while chidori.is_active(): pass
-    print("chidori finished, ", time.time() - start)
-
-    # Test handling via Renderer
-    renderer = Renderer()
-    renderer.add_animation("fireball", fireball)
-    renderer.add_animation("chidori", chidori)
-    renderer.start_animation("fireball")
-    while renderer.is_active("fireball"): pass
-    renderer.end_animation("fireball")
 
 

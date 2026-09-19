@@ -9,11 +9,17 @@ import time
 from pynput.keyboard import Listener, Key
 from rapidfuzz import fuzz
 
-from config import AUDIO_MODEL_PATH, AUDIO_VOCABULARY_WITH_UNK, BYAKUGAN_MSG, SHARINGAN_MSG, EMPTY_MSG, ENABLE_FUZZY_SEARCH, FUZZY_THRESHOLD
+from src.shinobi_cv.config import AUDIO_MODEL_PATH, BYAKUGAN_MSG, SHARINGAN_MSG, EMPTY_MSG, ENABLE_FUZZY_SEARCH, FUZZY_THRESHOLD
+
+import logging
+logger = logging.getLogger(__name__)
+
+
 
 class AudioDetector: 
     def __init__(self):
         if not Path.exists(AUDIO_MODEL_PATH):
+            
             raise FileNotFoundError("Be sure the path for the audio model is correct.")
 
         # Initialize model for vocabulary recognition
@@ -25,6 +31,9 @@ class AudioDetector:
 
         # Flag to listen
         self.is_talking = False
+
+        logger.info("Audio Recognizer ready.")
+
 
     def _on_press(self, key): 
         if key == Key.space: self.is_talking = True
@@ -43,7 +52,7 @@ class AudioDetector:
                 fuzz.partial_ratio("byakugan", text),
                 fuzz.partial_ratio("白眼", text)
             )
-            print(text, fuzzy_res_sharingan, fuzzy_res_byakugan)
+            logger.debug(text, fuzzy_res_sharingan, fuzzy_res_byakugan)
             if fuzzy_res_byakugan >= FUZZY_THRESHOLD and fuzzy_res_sharingan >= FUZZY_THRESHOLD: msg = SHARINGAN_MSG if fuzzy_res_sharingan >= fuzzy_res_byakugan else BYAKUGAN_MSG
             elif fuzzy_res_byakugan >= FUZZY_THRESHOLD: msg = BYAKUGAN_MSG
             elif fuzzy_res_sharingan >= FUZZY_THRESHOLD: msg = SHARINGAN_MSG
@@ -60,6 +69,8 @@ class AudioDetector:
         keyboard_listener = Listener(on_press=self._on_press, on_release=self._on_release)
         keyboard_listener.start() # Listener is a thread
 
+        logger.info("Keyboard listerer is listening.")
+
         # Init microphone
         mic = pyaudio.PyAudio()
         audio_stream = mic.open(
@@ -70,8 +81,8 @@ class AudioDetector:
             input_device_index=0,  # "pulse"
             frames_per_buffer=8192
         )
-    
-        print("Microphone is ready to listen. 'Sharingan/Byakugan' can be toggled.")
+
+        logger.info("Microphone is ready to listen.")
 
         try:
             while True:
@@ -81,7 +92,7 @@ class AudioDetector:
 
                     if audio_stream.is_stopped():
                         audio_stream.start_stream()  
-                        print("Microphone is listening...")           
+                        logger.info("Microphone is listening...")           
 
                     data = audio_stream.read(num_frames=4096, exception_on_overflow=False)
 
@@ -94,7 +105,7 @@ class AudioDetector:
                 else: 
                     if audio_stream.is_active():
                         audio_stream.stop_stream()
-                        print("Not listening. Sending recording...")
+                        logger.info("Not listening. Sending recording...")
                         # Clean any last words got before release
                         result_json = json.loads(self.recognizer.FinalResult())
                         self._process_recognised_text(result_json.get("text", ""), msg_queue)
@@ -102,15 +113,12 @@ class AudioDetector:
                     # Don't occupy resources for seconds-like
                     time.sleep(0.05)
                   
-        except KeyboardInterrupt:
-            print("Exiting audio module...")
         except Exception as e:
-            print("Raised error: ")
-            print(e)
+            logger.exception("Unpredicted exception raised in the audio module.")
         finally:
             # Cleanup
             keyboard_listener.stop()
             audio_stream.stop_stream()
             audio_stream.close()
             mic.terminate()
-            print("Audio&Mic resourse released.")
+            logger.info("Audio&Mic resourse released.")

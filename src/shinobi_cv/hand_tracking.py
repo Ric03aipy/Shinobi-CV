@@ -5,11 +5,14 @@ from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 
 
-from config import HAND_TRACKER_MODEL, TRACKING_CONFIDENCE
-from utility import draw_landmarks_on_image
+from src.shinobi_cv.config import HAND_TRACKER_MODEL, TRACKING_CONFIDENCE
+from src.shinobi_cv.utility import draw_landmarks_on_image
 
 from mediapipe.tasks.python.components.containers import NormalizedLandmark
 from typing import List
+
+import logging
+logger = logging.getLogger(__name__)
 
 
 class HandDetector: 
@@ -29,6 +32,9 @@ class HandDetector:
             min_tracking_confidence=TRACKING_CONFIDENCE        # Threshold for continuous tracking
         )
         self.detector = vision.HandLandmarker.create_from_options(options)
+
+        logger.info("Hand detector ready.")
+
 
     def detect(self, raw_frame: np.ndarray) -> tuple[dict, np.ndarray]: 
         """

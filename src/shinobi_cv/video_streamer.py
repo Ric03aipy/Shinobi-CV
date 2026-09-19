@@ -1,14 +1,13 @@
 import cv2 as cv
-
 import numpy as np
+import time
 
 from typing import Generator
 
-import time
-
+import logging
+logger = logging.getLogger(__name__)
 
 class VideoCameraStreamer: 
-
     """
     Class to open the camera. 
     """
@@ -18,6 +17,7 @@ class VideoCameraStreamer:
         # Initialize the camera capture
         self.cap = cv.VideoCapture(camera_index, cv.CAP_V4L2)
         if not self.cap.isOpened(): 
+            logger.critical("Cannot open the camera. Probably, the script can't access to it.")
             raise ValueError("Cannot open the camera. Check for permissions, WSL binds and device availability.")
 
         # Required to make things work on WSL 
@@ -28,9 +28,7 @@ class VideoCameraStreamer:
         self.h = int(self.cap.get(cv.CAP_PROP_FRAME_HEIGHT))
         self.fps = int(self.cap.get(cv.CAP_PROP_FPS)) 
 
-        print(f"Camera opened. Original strem info: width={self.w!s}, height={self.h!s}, fps={self.fps}")
-
-        # TODO: TUTTE LE PRINT DI DEBUG O DI CHECK PUOI FARLE DIVENTARE LOG COSì IMPARI IL LOGGING + DECORATORS PER COMPATTARE IL CODICE DI LOGGING
+        logger.info(f"Camera opened. Original strem info: width={self.w!s}, height={self.h!s}, fps={self.fps}")
 
     def stream_data(self) -> Generator[np.ndarray, np.ndarray, None]: # Yield_type, Send_type, Return_type
         """
@@ -65,22 +63,25 @@ class VideoCameraStreamer:
                 cv.imshow("Hand Tracker", frame)
 
                 # Exit condition
-                if cv.waitKey(1) & 0xFF == ord('q'): break
+                if cv.waitKey(1) & 0xFF == ord('q'): 
+                    logger.info("q pressed. Exiting the code correctly.")
+                    break
 
                 # Read one frame
                 ret, frame = self.cap.read()    # frame.shape = (480, 640, 3) | (H, W, C);  type(frame[0][0][0]) = numpy.uint8
                 if not ret: 
-                    print("Can't read further")
+                    logger.warning("Can't read further.")
                     break 
 
                 # Compute fps = 1 / (end - start)
                 self.fps = int(1 / (time.time() - start))
 
         except Exception as e: 
-            print(f"Exception caught: {e}")
+            logger.exception("Unpredicted exception raised.")
         finally:
             # Cleanup (any case)
             self.cap.release()
             cv.destroyAllWindows()
+            logger.info("All video resourser freed correctly.")
 
     

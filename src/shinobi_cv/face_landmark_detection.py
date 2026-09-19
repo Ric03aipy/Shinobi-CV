@@ -3,12 +3,14 @@ from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 import numpy as np
 
-# from utility import draw_landmarks_on_image
-from config import FACE_DETECTION_MODEL
+from src.shinobi_cv.config import FACE_DETECTION_MODEL
 from mediapipe.tasks.python.components.containers import NormalizedLandmark
 from typing import List
 
-from utility import get_camera_coordinates
+from src.shinobi_cv.utility import get_camera_coordinates
+
+import logging
+logger = logging.getLogger(__name__)
 
 class FaceLandMarkDetection: 
 
@@ -22,6 +24,8 @@ class FaceLandMarkDetection:
             num_faces=1
         )
         self.detector = vision.FaceLandmarker.create_from_options(options)
+
+        logger.info("Face model detector ready.")
 
     def detect_absolute_coordinates(self, raw_frame:np.ndarray, w: int, h:int) -> dict:
         """As detect, but point are returned in frame coordinates. Lost z info."""
@@ -80,7 +84,7 @@ class FaceLandMarkDetection:
         eye_dist = np.sqrt((left_eye_tip.x - right_eye_tip.x)**2 + (left_eye_tip.y - right_eye_tip.y)**2).item()
 
         # Preparing return values        
-
+        
         left_eye_center = tuple((
             sum(pt.x for pt in left_iris_contour) / 4,
             sum(pt.y for pt in left_iris_contour) / 4,
@@ -96,8 +100,6 @@ class FaceLandMarkDetection:
             sum(pt.y for pt in mouth_contour) / 4,
             sum(pt.z for pt in mouth_contour) / 4
         ))
-
-        # print("Fattore di scala:", eye_dist)
 
         return {
             "nose_tip": (nose_tip.x, nose_tip.y, nose_tip.z),
