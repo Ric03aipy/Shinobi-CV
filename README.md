@@ -6,7 +6,7 @@ A real-time multimodal system that recognizes Naruto-inspired hand signs via cla
 
 <video src="poc_github.mp4" controls width="100%"></video>
 
-<!-- ![Demo](poc_github.mp4) -->
+![Demo](poc_github.mp4) 
 
 About the demo: signs are vouluntarly wrong with respect to the Naruto world. These are just two of the easiest to recognise by the system to make the demo short. 
 
