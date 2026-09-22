@@ -1,17 +1,23 @@
+import json
+import logging
+import queue
+import time
 from pathlib import Path
-from vosk import KaldiRecognizer, Model
 
 import pyaudio
-import queue
-import json
-import time
-
-from pynput.keyboard import Listener, Key
+from pynput.keyboard import Key, Listener
 from rapidfuzz import fuzz
+from vosk import KaldiRecognizer, Model
 
-from src.shinobi_cv.config import AUDIO_MODEL_PATH, BYAKUGAN_MSG, SHARINGAN_MSG, EMPTY_MSG, ENABLE_FUZZY_SEARCH, FUZZY_THRESHOLD
+from src.shinobi_cv.config import (
+    AUDIO_MODEL_PATH,
+    BYAKUGAN_MSG,
+    EMPTY_MSG,
+    ENABLE_FUZZY_SEARCH,
+    FUZZY_THRESHOLD,
+    SHARINGAN_MSG,
+)
 
-import logging
 logger = logging.getLogger(__name__)
 
 
@@ -52,7 +58,6 @@ class AudioDetector:
                 fuzz.partial_ratio("byakugan", text),
                 fuzz.partial_ratio("白眼", text)
             )
-            logger.debug(text, fuzzy_res_sharingan, fuzzy_res_byakugan)
             if fuzzy_res_byakugan >= FUZZY_THRESHOLD and fuzzy_res_sharingan >= FUZZY_THRESHOLD: msg = SHARINGAN_MSG if fuzzy_res_sharingan >= fuzzy_res_byakugan else BYAKUGAN_MSG
             elif fuzzy_res_byakugan >= FUZZY_THRESHOLD: msg = BYAKUGAN_MSG
             elif fuzzy_res_sharingan >= FUZZY_THRESHOLD: msg = SHARINGAN_MSG
@@ -113,7 +118,7 @@ class AudioDetector:
                     # Don't occupy resources for seconds-like
                     time.sleep(0.05)
                   
-        except Exception as e:
+        except Exception:
             logger.exception("Unpredicted exception raised in the audio module.")
         finally:
             # Cleanup

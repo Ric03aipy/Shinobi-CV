@@ -1,13 +1,12 @@
 import time
-from src.shinobi_cv.config import ROOT
-from pathlib import Path
 from abc import ABC, abstractmethod
+from pathlib import Path
+from typing import Literal
+
 import cv2 as cv
 import numpy as np
 
-from typing import Literal
-
-from src.shinobi_cv.config import SCALE_FACTOR_REFERENCE
+from src.shinobi_cv.config import ROOT, SCALE_FACTOR_REFERENCE
 
 ANIMATION_PATH = ROOT / "shinobi_cv" / "animations" 
 MIN_SCALE = 0.005
@@ -15,6 +14,7 @@ MAX_SCALE = 2
 LOCAL_DEBUG = False
 
 import logging
+
 logger = logging.getLogger(__name__)
 
 # 2 tipes of animation: 
@@ -74,13 +74,12 @@ class Animation(ABC):
         Returns:
             tuple[int|None, int|None, float]: scaled offset and scaling for the image resize if computable.
         """
-        pass
 
 
 
 class TimedAnimation(Animation): 
     def __init__(self, 
-                 duration: int | float, 
+                 duration: float, 
                  image_path:Path, 
                  roi:Literal["nose_tip", "mouth_center", "left_eye_center", "right_eye_center", "hand_left", "hand_right"], 
                  particular_offset_x:int=0, 

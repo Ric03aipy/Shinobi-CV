@@ -1,13 +1,10 @@
 import logging
-
-from src.shinobi_cv.live_inference import *
-
-from src.shinobi_cv.animation import TimedAnimation, ToggleAnimation, ANIMATION_PATH
-from src.shinobi_cv.audio import AudioDetector
-
 import threading
-from src.shinobi_cv.config import LOG_PATH, MODEL, SEQUENCES
 
+from src.shinobi_cv.animation import ANIMATION_PATH, TimedAnimation, ToggleAnimation
+from src.shinobi_cv.audio import AudioDetector
+from src.shinobi_cv.config import MODEL, SEQUENCES
+from src.shinobi_cv.live_inference import *
 
 if __name__ == "__main__":
 
@@ -32,7 +29,7 @@ if __name__ == "__main__":
     # Model for sign inference
     try:
         model = Inference_Model(MODEL.stem)  
-    except Exception as e: 
+    except Exception: 
         logger.critical("Model chosen not available.")
         raise
 

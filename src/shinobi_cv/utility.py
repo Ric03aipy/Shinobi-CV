@@ -1,11 +1,6 @@
-import mediapipe as mp
-from mediapipe.tasks import python
-from mediapipe.tasks.python import vision
-from mediapipe.tasks.python.vision import drawing_utils
-from mediapipe.tasks.python.vision import drawing_styles
-import numpy as np
-import matplotlib.pyplot as plt
 import cv2 as cv
+import mediapipe as mp
+import numpy as np
 
 # =========== From Colab Example:  ==============
 # https://colab.research.google.com/github/googlesamples/mediapipe/blob/main/examples/hand_landmarker/python/hand_landmarker.ipynb#scrollTo=s3E6NFV-00Qt

@@ -1,29 +1,36 @@
+import logging
+import queue
 import time
-import numpy as np
-import joblib
-import torch
-import cv2 as cv
 from collections import deque
 
-from src.shinobi_cv.video_streamer import VideoCameraStreamer
-from src.shinobi_cv.hand_tracking import HandDetector
-from src.shinobi_cv.face_landmark_detection import FaceLandMarkDetection
-from src.training.mlp_model import HandSignMLP
+import cv2 as cv
+import joblib
+import numpy as np
+import torch
+
 from src.shinobi_cv.animation import Renderer
-from src.shinobi_cv.utility import get_camera_coordinates
-
-from src.shinobi_cv.config import  MODELS_PATH, SIGNS, MINIMUM_CONFIDENCE, \
-                    TIME_TO_CONFIRM,  SEQUENCES_TO_CAST, MAX_QUEUE_LEN, \
-                    SHARINGAN_MSG, BYAKUGAN_MSG
+from src.shinobi_cv.config import (
+    BYAKUGAN_MSG,
+    MAX_QUEUE_LEN,
+    MINIMUM_CONFIDENCE,
+    MODELS_PATH,
+    SEQUENCES_TO_CAST,
+    SHARINGAN_MSG,
+    SIGNS,
+    TIME_TO_CONFIRM,
+)
+from src.shinobi_cv.face_landmark_detection import FaceLandMarkDetection
+from src.shinobi_cv.hand_tracking import HandDetector
 from src.shinobi_cv.sign_search import SignTrie
-import queue
+from src.shinobi_cv.utility import get_camera_coordinates
+from src.shinobi_cv.video_streamer import VideoCameraStreamer
+from src.training.mlp_model import HandSignMLP
 
-import logging
 logger = logging.getLogger(__name__)
 
 
 
-class Inference_Model(): 
+class Inference_Model: 
 
     """Interface for inference regardless the model chosen.
     """
@@ -99,6 +106,7 @@ def live_inference(
 
     prev_sign:int = None
     current_sign:int = None
+    pred_class:int = None
 
     last_record = 0         # Instant of time when a new sign has been recorded
 
@@ -153,7 +161,7 @@ def live_inference(
                 pass
             except Exception as e:
                 logger.critical("Exception from the audio module")
-                raise e
+                raise
 
             for animation_name in renderer.active_animations.copy(): 
                 # Check to end animation 
@@ -162,6 +170,13 @@ def live_inference(
                 # Animate
                 else: 
                     new_frame = renderer.blend(animation_name, new_frame, core_pts, face_detector_res.get("scale_factor", None))
+
+            
+            # Usage purpose only
+            text = "Curr sign = " 
+            text = text + f"{SIGNS[pred_class]}" if pred_class else text + "None" 
+            text = text + " | Sign count = " + f"{votes[current_sign]}/6" if current_sign else text + " | Filling..."
+            cv.putText(new_frame, text, (300, 50), cv.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), thickness=5, lineType=cv.LINE_AA) 
 
             # ====== Collect data as the sign predictive model expects ======  
 
@@ -212,13 +227,12 @@ def live_inference(
                 prev_sign = current_sign
                 most_frequent_vote = np.argmax(votes).item()
                 current_sign = most_frequent_vote if votes[most_frequent_vote] > MAX_QUEUE_LEN // 2 else current_sign   # not SIGNS[most_frequent_vote] because I want the index of this
-                cv.putText(new_frame, f"Curr sign = {SIGNS[current_sign]} | Sign count = {votes[current_sign]}/6", (400, 50), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), thickness=5, lineType=cv.LINE_AA) 
                 # Look up into the trie to cast the justu only when it changes
                 if current_sign != prev_sign: 
                     sequence_to_cast = sign_trie.search_from_current_ptr(current_sign)
                     logger.info("Found sign in the trie:", sequence_to_cast)
                     if sequence_to_cast: # After a sing is casted whatever arrives will restart the sequence thanks to the prefix-free property of SignTrie
-                        sequence_to_cast_names = tuple((SIGNS[sign_id] for sign_id in sequence_to_cast))
+                        sequence_to_cast_names = tuple(SIGNS[sign_id] for sign_id in sequence_to_cast)
                         logger.info(f"Casted: {SEQUENCES_TO_CAST[sequence_to_cast_names]}")
 
                         # Casting a jutsu - Graphical Overlay
@@ -229,5 +243,5 @@ def live_inference(
     except StopIteration:
         logger.info("User clicked 'q' to stop the stream. Closing the program.") 
         return
-    except Exception as e:
+    except Exception:
         logger.exception("Unexpected error in the real time inference loop")

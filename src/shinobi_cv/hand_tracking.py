@@ -1,17 +1,14 @@
+import logging
+
 import mediapipe as mp
 import numpy as np
-
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
-
+from mediapipe.tasks.python.components.containers import NormalizedLandmark
 
 from src.shinobi_cv.config import HAND_TRACKER_MODEL, TRACKING_CONFIDENCE
 from src.shinobi_cv.utility import draw_landmarks_on_image
 
-from mediapipe.tasks.python.components.containers import NormalizedLandmark
-from typing import List
-
-import logging
 logger = logging.getLogger(__name__)
 
 
@@ -62,7 +59,7 @@ class HandDetector:
 
         return (extracted_hands, frame)
 
-    def _preprocess_landmarks(self, data: List[NormalizedLandmark]) -> tuple[np.ndarray, tuple[float, float]]: 
+    def _preprocess_landmarks(self, data: list[NormalizedLandmark]) -> tuple[np.ndarray, tuple[float, float]]: 
         """
         Normalize point coordinates in order to have the wrists in (0,0,0) and points invariant to scale.
 

@@ -1,14 +1,14 @@
 # TODO: RIALLINEARE RISPETTO AL REFACTORING FATTO SUIGLI OGGETTI INTERESSATI
 
 
-from src.shinobi_cv.hand_tracking import HandDetector
-from src.shinobi_cv.video_streamer import VideoCameraStreamer
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
 from src.shinobi_cv.config import DATA_FILE, SIGNS
-from pathlib import Path
+from src.shinobi_cv.hand_tracking import HandDetector
+from src.shinobi_cv.video_streamer import VideoCameraStreamer
 
 INTERVAL = 3 # Number of frames to discard
 

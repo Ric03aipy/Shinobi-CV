@@ -1,0 +1,45 @@
+version: '3.8'
+
+services: 
+  shinobi-app: 
+    build: 
+      context: .
+      dockerfile: Dockerfile.app
+
+    # # Creating a tunnel to pass GPU to Docker  
+    # deploy:  
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all 
+    #           capabilities: [gpu]
+
+    # Pass webcam on Linux; for WSL manually do the usbipd thing (read README.md)
+    devices:
+      - "/dev/video0:/dev/video0"
+
+    # Pass Audio & Gui
+    volumes:
+      # This is to pass the graphic server (Weston/X11) necessary for cv2.imshow()
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      # This is the socker for PulseAudio necessary to pass the microphone
+      - /mnt/wslg/PulseServer:/mnt/wslg/PulseServer
+    
+    environment:
+      - DISPLAY=${DISPLAY} # Necessary for the GUI
+      - PULSE_SERVER=unix:/mnt/wslg/PulseServer # Needed by PyAudio 
+
+    # These keep the terminal open to interact or see the log in real time
+    tty: true
+    stdin_open: true
+
+
+
+
+# FIRST TIME
+# docker-compose up --build 
+# THEN 
+# docker-compose up
+# CLOSE WITH
+# docker-compose down 

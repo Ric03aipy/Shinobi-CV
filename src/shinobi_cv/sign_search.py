@@ -1,6 +1,7 @@
+import logging
+
 from src.shinobi_cv.config import SIGNS
 
-import logging
 logger = logging.getLogger(__name__)
 
 class SignTrieNode: 
@@ -24,7 +25,7 @@ class SignTrie:
         for seq in sequences: 
             self.insert([sign_name_id_map[word] for word in sequences[seq]])
 
-        logger.info(f"Trie initialized with sequence: {str(sequences)}")
+        logger.info(f"Trie initialized with sequence: {sequences!s}")
 
     def insert(self, formula: list[int]): 
         curr = self.root

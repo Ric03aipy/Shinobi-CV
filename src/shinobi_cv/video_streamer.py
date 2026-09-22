@@ -1,10 +1,10 @@
+import logging
+import time
+from collections.abc import Generator
+
 import cv2 as cv
 import numpy as np
-import time
 
-from typing import Generator
-
-import logging
 logger = logging.getLogger(__name__)
 
 class VideoCameraStreamer: 
@@ -76,7 +76,7 @@ class VideoCameraStreamer:
                 # Compute fps = 1 / (end - start)
                 self.fps = int(1 / (time.time() - start))
 
-        except Exception as e: 
+        except Exception: 
             logger.exception("Unpredicted exception raised.")
         finally:
             # Cleanup (any case)

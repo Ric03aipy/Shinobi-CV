@@ -1,12 +1,12 @@
-from dataclasses import dataclass
 import random
+from dataclasses import dataclass
+
 import numpy as np
 
-
-from src.shinobi_cv.sign_search import SignTrie
+from src.shinobi_cv.config import _MLP_MODEL, _RF_MODEL
 from src.shinobi_cv.hand_tracking import HandDetector
 from src.shinobi_cv.live_inference import Inference_Model
-from src.shinobi_cv.config import _MLP_MODEL, _RF_MODEL
+from src.shinobi_cv.sign_search import SignTrie
 
 # ==================================================================
 # 

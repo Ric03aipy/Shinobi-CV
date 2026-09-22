@@ -1,15 +1,14 @@
+import logging
+
 import mediapipe as mp
+import numpy as np
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
-import numpy as np
+from mediapipe.tasks.python.components.containers import NormalizedLandmark
 
 from src.shinobi_cv.config import FACE_DETECTION_MODEL
-from mediapipe.tasks.python.components.containers import NormalizedLandmark
-from typing import List
-
 from src.shinobi_cv.utility import get_camera_coordinates
 
-import logging
 logger = logging.getLogger(__name__)
 
 class FaceLandMarkDetection: 
@@ -57,7 +56,7 @@ class FaceLandMarkDetection:
         # Assumption: only 1 face can be deteted - no configurable number of faces
         return self._preprocess_landmarks(face_landmarks_lists[0]) if face_landmarks_lists else {}
 
-    def _preprocess_landmarks(self, data: List[NormalizedLandmark]) -> dict: 
+    def _preprocess_landmarks(self, data: list[NormalizedLandmark]) -> dict: 
         """
         Normalize point coordinates in order to have the nose tip in (0,0,0) and points invariant to scale.
 
