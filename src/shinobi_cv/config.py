@@ -29,8 +29,8 @@ MAX_QUEUE_LEN = 10
 # TODO: FOR THE PROOF OF CONCEPT VERSION ONLY THE SHORT VERSION OF THE 'great fireball jutsu' HAS BEEN IMPLEMENTED
 SEQUENCES = {
     "great fireball jutsu": ("horse", "rat"),   # Serpent, Ram, Monkey, Boar, Horse, Tiger
-    "summoning jutsu": ("dog", "ram"),          # Boar, Dog, Bird, Monkey, Ram.
-    "chidori": ("dragon", "rat")                # Ox, Rabbit, Monkey, Dragon, Rat, Bird, Ox, Snake, Dog, Tiger, Monkey
+    # "summoning jutsu": ("dog", "ram"),          # Boar, Dog, Bird, Monkey, Ram.
+    # "chidori": ("dragon", "rat")                # Ox, Rabbit, Monkey, Dragon, Rat, Bird, Ox, Snake, Dog, Tiger, Monkey
 }
 
 SEQUENCES_TO_CAST = {t:s for s, t in SEQUENCES.items()}

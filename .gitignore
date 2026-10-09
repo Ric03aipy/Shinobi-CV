@@ -23,6 +23,7 @@ hand_img.jpg
 src/shinobi_cv/hand_tracking_prova.py
 src/shinobi_cv/face_landmark_prova.py
 src/shinobi_cv/audio_test.py
+poc_small.mp4
 
 # Future works
 src/research/
